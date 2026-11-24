@@ -1,0 +1,36 @@
+data: 2026-11-23T23:23:00-03:00
+threads CPU usadas: 8 (núcleos físicos: 8)
+
+CPU(s):                                  8
+Model name:                              Intel(R) Core(TM) i7-9700F CPU @ 3.00GHz
+Thread(s) per core:                      1
+Core(s) per socket:                      8
+Socket(s):                               1
+L1d cache:                               256 KiB (8 instances)
+L2 cache:                                2 MiB (8 instances)
+L3 cache:                                12 MiB (1 instance)
+
+               total        used        free      shared  buff/cache   available
+Mem:           7.7Gi       612Mi       2.3Gi       4.1Mi       5.0Gi       7.1Gi
+
+Linux Mth7 6.18.58.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct 27 00:24:11 UTC 2026 x86_64 GNU/Linux
+
+gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0
+
+Cuda compilation tools, release 12.4, V12.4.131
+Build cuda_12.4.r12.4/compiler.34097967_0
+
+name, driver_version, memory.total [MiB], clocks.max.sm [MHz], pcie.link.gen.max, pcie.link.width.max
+NVIDIA GeForce RTX 3060, 621.24, 12288 MiB, 2130 MHz, 3, 16
+
+
+libcublas12:amd64 12.4.5.8~12.4.1-8
+libcublaslt12:amd64 12.4.5.8~12.4.1-8
+libopenblas-dev:amd64 0.3.32+ds-5
+libopenblas-pthread-dev:amd64 0.3.32+ds-5
+libopenblas0:amd64 0.3.32+ds-5
+libopenblas0-pthread:amd64 0.3.32+ds-5
+nvidia-cuda-toolkit 12.4.131~12.4.1-8
+nvidia-cuda-toolkit-doc 12.4.1-8
+
+REPS=30 AQ=5 TAMANHOS=64 128 256 512 1024 2048 4096

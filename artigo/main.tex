@@ -1,0 +1,440 @@
+\documentclass[12pt]{article}
+
+\usepackage{sbc-template}
+\usepackage{graphicx,url}
+\usepackage[brazil]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{xcolor}
+
+\sloppy
+
+% ---------------------------------------------------------------------------
+% Números que dependem dos experimentos. Enquanto codigo/analisar.py não
+% rodar, aparecem como [a medir]. Depois, resultados/macros.tex os substitui.
+% ---------------------------------------------------------------------------
+\newcommand{\pendente}{\textbf{\textcolor{red}{[a medir]}}}
+\newcommand{\breakeven}{\pendente}
+\newcommand{\breakevenEn}{\pendente}
+\newcommand{\nEstimado}{\pendente}
+\newcommand{\banda}{\pendente}
+\newcommand{\speedupEteMax}{\pendente}
+\newcommand{\speedupEteMin}{\pendente}
+\newcommand{\speedupKernelMax}{\pendente}
+\newcommand{\nMax}{4096}
+\newcommand{\nMin}{64}
+\newcommand{\fracTransfMin}{\pendente}
+\newcommand{\fracTransfMax}{\pendente}
+\newcommand{\cvMax}{\pendente}
+\newcommand{\gflopsCpu}{\pendente}
+\newcommand{\gflopsGpu}{\pendente}
+\newcommand{\nSeq}{1024}
+\newcommand{\speedupSeqKernel}{\pendente}
+\newcommand{\speedupSeqEte}{\pendente}
+\newcommand{\speedupRefEteSeqN}{\pendente}
+\newcommand{\ganhoPinned}{\pendente}
+\InputIfFileExists{resultados/macros.tex}{}{}
+
+% Trechos de interpretação que precisam ser conferidos com os dados reais.
+% Para a versão de submissão, troque \revisartrue por \revisarfalse.
+\newif\ifrevisar \revisartrue
+\newcommand{\revisar}[1]{\ifrevisar{\color{orange!70!black}#1}\else#1\fi}
+
+\newcommand{\figura}[2]{\IfFileExists{figuras/#1.pdf}%
+  {\includegraphics[width=#2]{figuras/#1.pdf}}%
+  {\fbox{\parbox[c][3.5cm][c]{\dimexpr#2-2\fboxsep-2\fboxrule}{\centering\small Figura gerada por\\\texttt{codigo/analisar.py}}}}}
+
+\title{Quando a GPU compensa? Análise experimental de desempenho\\
+entre CPU e GPU na multiplicação de matrizes}
+
+% Se a revisão for double-blind, remova nomes, instituição e e-mails.
+\author{Luís Filipe Alves Silva Santos\inst{1}, Matheus Costa da Rocha\inst{1},\\
+Ronierison de Souza Maciel\inst{1}}
+
+\address{Bacharelado em Ciência da Computação -- CESAR School\\
+  Recife -- PE -- Brasil
+  \email{\{lfass,mcr\}@cesar.school, \revisar{[e-mail do professor]}}
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+GPU speedups over CPUs are often reported as large factors, but such figures
+frequently compare an optimized GPU kernel against unoptimized single-threaded
+CPU code and ignore host--device data transfers. This paper experimentally
+investigates when a GPU actually pays off for single-precision dense matrix
+multiplication. We compare naive and optimized multithreaded CPU
+implementations (OpenMP and OpenBLAS) with three CUDA implementations (naive,
+shared-memory tiling and cuBLAS), measuring both kernel-only and end-to-end
+times, with repeated runs and 95\% confidence intervals. The GPU only
+outperforms the best CPU implementation, end to end, from a matrix order
+\breakevenEn{} onward, reaching a speedup of \speedupEteMax$\times$ at
+$N=\nMax$, far below the \speedupSeqKernel$\times$ obtained when the kernel is
+compared with naive sequential code.
+\end{abstract}
+
+\begin{resumo}
+Ganhos de desempenho da GPU sobre a CPU costumam ser divulgados como fatores
+expressivos, mas muitas vezes comparam um kernel de GPU otimizado com código
+sequencial não otimizado na CPU e ignoram a transferência de dados entre as
+memórias. Este trabalho investiga experimentalmente quando a GPU de fato
+compensa na multiplicação de matrizes densas em precisão simples. Comparamos
+implementações de CPU ingênua e otimizadas multithread (OpenMP e OpenBLAS) com
+três implementações em CUDA (ingênua, blocada em memória compartilhada e
+cuBLAS), medindo os tempos só do kernel e ponta a ponta, com repetições e
+intervalos de confiança de 95\%. A GPU só supera a melhor implementação de
+CPU, ponta a ponta, a partir de uma ordem de matriz \breakeven, chegando a um
+speedup de \speedupEteMax$\times$ em $N=\nMax$, bem abaixo dos
+\speedupSeqKernel$\times$ obtidos ao comparar o kernel com o código sequencial
+ingênuo.
+\end{resumo}
+
+% ===========================================================================
+\section{Introdução}
+% ===========================================================================
+
+Unidades de processamento gráfico (GPUs) deixaram de ser dispositivos
+dedicados apenas à renderização e se tornaram processadores de propósito geral
+voltados para vazão, com milhares de unidades aritméticas e memória de alta
+largura de banda~\cite{owens2008}. Modelos de programação como o
+CUDA~\cite{nickolls2008} tornaram esse hardware acessível, e a multiplicação
+de matrizes densas, com $2N^3$ operações de ponto flutuante sobre $3N^2$
+elementos, virou o exemplo clássico de carga que se beneficia dele.
+
+É comum encontrar na literatura e na divulgação técnica ganhos de 10 a
+100~vezes da GPU sobre a CPU. Esses números, porém, dependem fortemente de
+\emph{como} a comparação é feita. Lee et al.~\cite{lee2010} mostraram
+que, quando o código de CPU recebe o mesmo cuidado de otimização que o de GPU
+(uso de todos os núcleos, vetorização SIMD e blocagem em cache), a diferença
+média cai para poucas vezes. Gregg e Hazelwood~\cite{gregg2011}
+argumentaram que não se pode comparar CPU e GPU sem dizer onde os dados estão:
+se as matrizes nascem e terminam na memória principal, o tempo de cópia pelo
+barramento PCIe faz parte do custo e pode dominar o tempo total.
+
+Este trabalho parte dessas duas críticas e formula uma pergunta prática:
+\textbf{a partir de que tamanho de problema a GPU passa a compensar, de ponta a
+ponta, em relação a uma CPU multithread otimizada?} Para respondê-la, a
+multiplicação de matrizes quadradas em precisão simples é executada em seis
+implementações (três de CPU e três de GPU), em tamanhos de $N=\nMin$ a
+$N=\nMax$, separando o tempo do kernel do tempo de transferência e tratando
+os resultados com repetições e intervalos de confiança.
+
+As contribuições são: (i) uma metodologia de medição justa e reprodutível,
+com código aberto, que inclui a transferência CPU--GPU e usa código
+otimizado também na CPU; (ii) a identificação experimental do ponto de
+equilíbrio em que a GPU passa a vencer, comparado com um modelo analítico
+simples; e (iii) uma quantificação de quanto o speedup reportado muda conforme
+a linha de base escolhida.
+
+O restante do texto está organizado assim: a Seção~\ref{sec:relacionados}
+discute os trabalhos relacionados; a Seção~\ref{sec:metodologia} descreve
+implementações, ambiente e protocolo de medição; a
+Seção~\ref{sec:resultados} apresenta e discute os resultados; a
+Seção~\ref{sec:ameacas} trata das ameaças à validade; e a
+Seção~\ref{sec:conclusao} conclui.
+
+% ===========================================================================
+\section{Fundamentação e Trabalhos Relacionados}\label{sec:relacionados}
+% ===========================================================================
+
+\textbf{GPUs e CUDA.} Owens et al.~\cite{owens2008} descrevem a
+evolução das GPUs para computação de propósito geral e as características
+que favorecem aplicações com paralelismo de dados abundante, como a
+multiplicação de matrizes. Nickolls et al.~\cite{nickolls2008}
+apresentam o modelo CUDA, em que o programador organiza a computação em uma
+grade de blocos de threads que cooperam por memória compartilhada e barreiras
+de sincronização. Hwu et al.~\cite{hwu2022} detalham a técnica de
+blocagem (\emph{tiling}) em memória compartilhada, que reduz o tráfego com a
+memória global ao reaproveitar cada elemento lido por vários threads; essa é a
+base da nossa implementação intermediária de GPU.
+
+\textbf{Multiplicação de matrizes otimizada.} Em CPU, implementações de alto
+desempenho seguem a organização proposta por
+Goto e van de Geijn~\cite{goto2008}, que particiona as matrizes em blocos
+ajustados a cada nível da hierarquia de cache e usa microkernels vetorizados;
+essa organização deu origem à GotoBLAS e, por extensão, à OpenBLAS usada aqui.
+Em GPU, Volkov e Demmel~\cite{volkov2008} mostraram, por
+microbenchmarks, como ajustar a multiplicação de matrizes para aproximá-la do
+pico do hardware, resultados incorporados a bibliotecas como a cuBLAS. O
+modelo Roofline~\cite{williams2009} relaciona o desempenho atingível à
+intensidade aritmética (operações por byte movido) e é útil para entender por
+que a multiplicação de matrizes, cuja intensidade cresce com $N$, tende a ser
+limitada por computação em matrizes grandes.
+
+\textbf{Comparações justas entre CPU e GPU.} O trabalho mais próximo do nosso é
+o de Lee et al.~\cite{lee2010}, que avaliou 14 kernels de vazão em
+uma CPU e uma GPU da época, otimizando ambos, e concluiu que a vantagem média
+da GPU era muito menor que os 100$\times$ frequentemente divulgados.
+Gregg e Hazelwood~\cite{gregg2011} complementam esse argumento ao
+mostrar que o tempo de transferência entre memórias muda a conclusão sobre qual
+processador é melhor e propõem que toda comparação informe onde os dados
+residem. Nosso trabalho aplica as duas recomendações a um único kernel, em
+hardware atual e acessível a um estudante, e vai além ao localizar
+experimentalmente o tamanho de problema a partir do qual a GPU passa a vencer
+de ponta a ponta.
+
+% ===========================================================================
+\section{Metodologia}\label{sec:metodologia}
+% ===========================================================================
+
+\subsection{Pergunta de pesquisa e hipóteses}
+
+A pergunta central é: \emph{para multiplicação de matrizes densas quadradas em
+FP32 com os dados inicialmente na memória da CPU, a partir de que ordem $N$ a
+GPU supera, de ponta a ponta, a melhor implementação multithread de CPU?}
+Formulamos três hipóteses:
+\textbf{H1:} para $N$ pequeno, a CPU otimizada vence, porque os custos fixos de
+transferência e de lançamento de kernel na GPU superam o tempo de computação;
+\textbf{H2:} existe um ponto de equilíbrio $N^*$ a partir do qual a GPU vence,
+e o speedup ponta a ponta cresce com $N$, já que a computação cresce com $N^3$
+e a transferência com $N^2$;
+\textbf{H3:} o speedup medido contra uma CPU sequencial ingênua, considerando
+só o kernel, é ordens de grandeza maior que o medido contra a CPU otimizada
+de ponta a ponta.
+
+\textbf{Modelo analítico.} Sejam $P_c$ e $P_g$ as vazões (FLOP/s) da CPU e do
+kernel de GPU, e $B$ a largura de banda efetiva do barramento. Copiar $A$ e
+$B$ para a GPU e trazer $C$ de volta move $12N^2$ bytes em FP32. Desprezando
+latências fixas, a GPU vence quando
+\begin{equation}
+\frac{2N^3}{P_c} > \frac{12N^2}{B} + \frac{2N^3}{P_g}
+\quad\Longrightarrow\quad
+N > N^* = \frac{6\,P_c}{B\,(1 - P_c/P_g)}.
+\label{eq:nstar}
+\end{equation}
+A Equação~\ref{eq:nstar} mostra que o ponto de equilíbrio é proporcional à
+vazão da CPU: quanto melhor o código de CPU, maior o problema necessário para
+a GPU compensar. Na Seção~\ref{sec:resultados}, $N^*$ é estimado com $P_c$,
+$P_g$ e $B$ medidos e comparado com o valor observado.
+
+\subsection{Implementações}
+
+Todas as versões calculam $C = AB$ com matrizes quadradas em FP32, armazenadas
+por linhas, preenchidas com valores pseudoaleatórios uniformes em $[-1,1]$ a
+partir da mesma semente, de modo que CPU e GPU recebem exatamente as mesmas
+entradas.
+
+\textbf{CPU ingênua (1 thread):} três laços aninhados na ordem $ijk$, sem
+paralelismo; representa a linha de base usada em muitas comparações e só é
+medida até $N=\nSeq$, pois fica lenta demais acima disso.
+\textbf{CPU OpenMP blocada:} blocos de $64\times64$, ordem $ikj$ no laço
+interno (acesso contíguo e vetorizável com \texttt{omp simd}) e paralelismo
+sobre faixas de linhas de $C$ com OpenMP, sem escritas compartilhadas entre
+threads.
+\textbf{CPU OpenBLAS:} chamada \texttt{cblas\_sgemm} da OpenBLAS, multithread,
+como referência do estado da arte em CPU~\cite{goto2008}.
+\textbf{GPU ingênua:} um thread por elemento de $C$, lendo $A$ e $B$
+diretamente da memória global, em blocos de $32\times32$ threads.
+\textbf{GPU blocada:} blocagem em memória compartilhada com
+\emph{tiles} de $32\times32$~\cite{hwu2022}.
+\textbf{GPU cuBLAS:} \texttt{cublasSgemm} com o modo de precisão padrão
+(sem TF32), para que a aritmética seja comparável à da CPU.
+
+A corretude de cada execução é verificada recalculando 64 elementos de $C$,
+escolhidos aleatoriamente, em precisão dupla; o erro relativo, normalizado por
+$\sum_k|a_{ik}b_{kj}|$, deve ficar abaixo de $10^{-3}$.
+
+\subsection{Ambiente experimental}
+
+A Tabela~\ref{tab:ambiente} resume o hardware e o software. Os dados são
+coletados automaticamente pelo script de experimentos.
+
+\begin{table}[ht]
+\centering
+\caption{Ambiente experimental. \revisar{(Preencher com
+\texttt{resultados/ambiente.txt}.)}}
+\label{tab:ambiente}
+\small
+\begin{tabular}{ll}
+\hline
+CPU & \revisar{modelo, núcleos físicos/threads, frequência, cache L3} \\
+Memória principal & \revisar{capacidade e tipo} \\
+GPU & \revisar{modelo, memória, número de SMs} \\
+Barramento & \revisar{PCIe geração e largura} \\
+Sistema operacional & \revisar{Ubuntu xx.04, kernel x.y} \\
+Compiladores & \revisar{GCC x.y (\texttt{-O3 -march=native -fopenmp}); CUDA x.y (\texttt{-O3})} \\
+Bibliotecas & \revisar{OpenBLAS x.y; cuBLAS x.y} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Métricas e protocolo de medição}
+
+Para cada implementação e cada $N \in \{64, 128, \dots, \nMax\}$ (potências de
+2), executamos 5 repetições de aquecimento, descartadas, seguidas de 30
+repetições medidas, em processos separados por configuração. O número de
+threads de CPU é igual ao de núcleos físicos. Na versão OpenMP, as threads são
+fixadas aos núcleos (\texttt{OMP\_PROC\_BIND=close},
+\texttt{OMP\_PLACES=cores}). Na OpenBLAS, essa fixação é desativada
+(\texttt{OMP\_PROC\_BIND=false}): com ela ativa, o \emph{runtime} do OpenMP
+prende a thread principal a um único núcleo e as threads criadas pela OpenBLAS
+herdam essa restrição, de modo que a biblioteca roda, na prática, em um só
+núcleo. Em testes preliminares, isso a deixou cerca de 6 vezes mais lenta
+(aproximadamente 120 contra 760~GFLOP/s em $N=2048$), um exemplo de como um
+detalhe de configuração pode subestimar a linha de base de CPU.
+
+Na CPU, o tempo é medido com \texttt{clock\_gettime(CLOCK\_MONOTONIC)} em
+torno da chamada de multiplicação. Na GPU, cada repetição registra quatro
+tempos: cópia de $A$ e $B$ para a GPU, kernel e cópia de $C$ de volta, com
+eventos CUDA, e o tempo \textbf{ponta a ponta}, com relógio de parede, que
+inclui as três etapas e a sincronização final. A criação do contexto CUDA, a
+alocação na GPU e a criação do \emph{handle} da cuBLAS ficam fora da medição,
+por serem custos únicos amortizados numa aplicação real; a memória da CPU é
+paginável (\texttt{malloc}), o caso mais comum. Como experimento adicional,
+repetimos a cuBLAS com memória fixada (\emph{pinned}).
+
+Reportamos, para cada configuração, a \textbf{mediana} das repetições, com
+intervalo de confiança de 95\% obtido por \emph{bootstrap} (2.000
+reamostragens), além do coeficiente de variação. Optamos pela mediana porque
+observamos picos isolados de até 25 vezes o tempo típico, causados por
+interferência do sistema operacional hospedeiro: como a OpenBLAS ocupa todos os
+núcleos, basta um deles ser interrompido para que toda a multiplicação espere.
+A média seria dominada por esses picos, enquanto a mediana representa o
+desempenho típico~\cite{jain1991}. O desempenho é expresso em GFLOP/s
+$= 2N^3/(t \cdot 10^9)$ e o speedup como a razão entre as medianas da melhor
+CPU e da GPU, com intervalo de confiança obtido por \emph{bootstrap} com 4.000
+reamostragens.
+
+% ===========================================================================
+\section{Resultados e Discussão}\label{sec:resultados}
+% ===========================================================================
+
+\revisar{Todas as medições passaram na verificação de corretude. A
+variabilidade foi alta nos tamanhos pequenos, em que cada execução dura poucos
+microssegundos e qualquer interrupção do sistema hospedeiro pesa (coeficiente
+de variação de até \cvMax\%), e menor nos tamanhos maiores; por isso, os
+resultados usam a mediana, como descrito na Seção~\ref{sec:metodologia}.} A
+Tabela~\ref{tab:resultados} traz os tempos medianos das principais
+configurações e as Figuras~\ref{fig:tempo-speedup} e~\ref{fig:decomp}
+resumem o comportamento.
+
+\begin{table}[ht]
+\centering
+\caption{Tempo mediano por multiplicação (mediana $\pm$ meia-largura do IC
+95\% por \emph{bootstrap}, em \% da mediana). ``p.~a~p.'' = ponta a ponta, incluindo transferências.}
+\label{tab:resultados}
+\IfFileExists{resultados/tabela.tex}%
+  {\resizebox{\textwidth}{!}{\input{resultados/tabela.tex}}}%
+  {\fbox{\parbox{0.8\textwidth}{\centering\small Tabela gerada por
+  \texttt{codigo/analisar.py}}}}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\begin{minipage}[t]{0.49\textwidth}\centering
+\figura{tempo}{\linewidth}\\
+\small (a) Tempo por multiplicação
+\end{minipage}\hfill
+\begin{minipage}[t]{0.49\textwidth}\centering
+\figura{speedup}{\linewidth}\\
+\small (b) Speedup da cuBLAS sobre a OpenBLAS
+\end{minipage}
+\caption{(a) Tempo mediano em função de $N$; as curvas de GPU em linha
+contínua são ponta a ponta e a tracejada é só o kernel da cuBLAS. (b) Speedup
+da GPU sobre a melhor CPU; valores abaixo de 1 indicam que a CPU é mais rápida.
+Barras de erro: IC 95\%.}
+\label{fig:tempo-speedup}
+\end{figure}
+
+\textbf{Pequenos problemas (H1).} \revisar{Para $N=\nMin$, a GPU é
+\emph{mais lenta} que a OpenBLAS de ponta a ponta (speedup de
+\speedupEteMin$\times$). Nesse regime, como mostra a
+Figura~\ref{fig:decomp}, cerca de \fracTransfMin\% do tempo da GPU é gasto
+copiando dados, e o próprio kernel dura poucos microssegundos, próximo do
+custo fixo de lançamento. A hipótese H1 é, portanto, confirmada.}
+
+\textbf{Ponto de equilíbrio (H2).} \revisar{A GPU passa a vencer a melhor CPU
+de forma consistente \breakeven, e o speedup ponta a ponta cresce com $N$,
+chegando a \speedupEteMax$\times$ em $N=\nMax$. O modelo da
+Equação~\ref{eq:nstar}, alimentado com a vazão medida da CPU
+(\gflopsCpu~GFLOP/s), do kernel da cuBLAS (\gflopsGpu~GFLOP/s) e com a banda
+efetiva medida do barramento (\banda~GB/s), prevê $N^* \approx \nEstimado$,
+valor que cai dentro do intervalo observado, o que indica que o modelo,
+apesar de simples, captura bem o compromisso entre computação e transferência. A fração do tempo gasta em transferência cai para
+\fracTransfMax\% em $N=\nMax$, coerente com a razão $N^3/N^2$, mas continua
+relevante: o speedup só do kernel (até \speedupKernelMax$\times$) é bem maior
+que o ponta a ponta, o que reforça o argumento de
+Gregg e Hazelwood~\cite{gregg2011}. Com memória \emph{pinned}, o tempo
+ponta a ponta da cuBLAS em $N=\nMax$ cai \ganhoPinned\%.}
+
+\begin{figure}[ht]
+\centering
+\figura{decomposicao}{0.6\textwidth}
+\caption{Decomposição do tempo ponta a ponta da cuBLAS em cópia para a GPU,
+kernel e cópia de volta, em função de $N$.}
+\label{fig:decomp}
+\end{figure}
+
+\textbf{A escolha da linha de base (H3).} \revisar{Em $N=\nSeq$, comparar o
+kernel da cuBLAS com a CPU sequencial ingênua resulta em um speedup de
+\speedupSeqKernel$\times$; incluindo as transferências, o valor cai para
+\speedupSeqEte$\times$; e contra a OpenBLAS multithread, ponta a ponta, é de
+apenas \speedupRefEteSeqN$\times$. O mesmo experimento pode, portanto,
+sustentar números que diferem em ordens de grandeza, dependendo apenas da
+linha de base e do que se inclui na medição, em linha com
+Lee et al.~\cite{lee2010}. A hipótese H3 é confirmada.}
+
+\textbf{Implementações próprias de GPU.} \revisar{A versão blocada em memória
+compartilhada é mais rápida que a ingênua em todos os tamanhos maiores,
+mas fica distante da cuBLAS, sendo cerca de 3,9 vezes mais lenta de ponta a ponta em $N=\nMax$.
+Isso mostra que a vantagem da GPU depende também de otimizações difíceis de
+reproduzir à mão, como as descritas por Volkov e Demmel~\cite{volkov2008}.
+Da mesma forma, a nossa versão OpenMP blocada fica atrás da OpenBLAS,
+cerca de 9,7 vezes mais lenta em $N=\nMax$, o que mostra o quanto a linha de base de CPU pode
+ser subestimada quando não se usa uma biblioteca otimizada.}
+
+% ===========================================================================
+\section{Ameaças à Validade}\label{sec:ameacas}
+% ===========================================================================
+
+\textbf{Validade externa.} Os experimentos usam uma única combinação de CPU e
+GPU; outras máquinas terão pontos de equilíbrio diferentes, embora a
+Equação~\ref{eq:nstar} permita estimá-los a partir de $P_c$, $P_g$ e $B$.
+Avaliamos apenas matrizes quadradas, em FP32 e com tamanhos potência de 2; GPUs
+de consumo têm vazão muito menor em FP64, o que deslocaria $N^*$ para cima.
+Também não medimos consumo de energia.
+\textbf{Validade interna.} Frequência dinâmica (\emph{turbo}) e
+estrangulamento térmico podem variar entre execuções; mitigamos com
+aquecimento, repetições e o plano de energia de alto desempenho do
+Windows. Os experimentos rodaram em um computador de uso pessoal, no Ubuntu sob
+WSL2, com o Windows como sistema hospedeiro: processos do hospedeiro causaram
+picos ocasionais de tempo, tratados com o uso da mediana, e a camada de
+virtualização pode acrescentar sobrecarga às transferências entre CPU e GPU. As bibliotecas escolhem internamente seus algoritmos, o
+que pode causar descontinuidades entre tamanhos.
+\textbf{Validade de construto.} O tempo ponta a ponta exclui alocação e criação
+de contexto; num programa que faz uma única multiplicação, esses custos
+favoreceriam ainda mais a CPU. Por outro lado, aplicações que mantêm os dados
+na GPU entre várias operações amortizam a transferência e se aproximam da
+curva ``só kernel''.
+
+% ===========================================================================
+\section{Conclusão}\label{sec:conclusao}
+% ===========================================================================
+
+Este trabalho investigou quando a GPU compensa na multiplicação de matrizes
+densas, comparando-a com uma CPU multithread otimizada e incluindo a
+transferência de dados na medição. \revisar{Os resultados mostram que a GPU
+só vence de ponta a ponta \breakeven, que o ganho chega a
+\speedupEteMax$\times$ em $N=\nMax$ e que esse valor é muito menor do que o
+obtido ao comparar apenas o kernel com código sequencial ingênuo.} A
+mensagem prática é que a decisão de usar GPU deve considerar o tamanho do
+problema, onde os dados residem e a qualidade do código de CPU disponível; o
+modelo da Equação~\ref{eq:nstar} oferece uma estimativa rápida do ponto de
+equilíbrio a partir de três grandezas medidas.
+
+Como trabalhos futuros, pretendemos: avaliar cenários em que várias
+multiplicações reutilizam os dados na GPU; sobrepor transferência e computação
+com \emph{streams}; incluir FP64, FP16 e núcleos tensoriais; repetir os
+experimentos em outras combinações de hardware; e medir a eficiência
+energética.
+
+\textbf{Disponibilidade.} \revisar{O código dos experimentos, os dados brutos e
+os scripts de análise estão disponíveis em [link do repositório].}
+
+\bibliographystyle{sbc}
+\bibliography{referencias}
+
+\end{document}

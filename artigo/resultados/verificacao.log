@@ -1,0 +1,47 @@
+[cpu_seq n=64 threads=1] erro_rel_max=6.69e-08 OK
+[cpu_omp n=64 threads=8] erro_rel_max=6.69e-08 OK
+[cpu_blas n=64 threads=8] erro_rel_max=8.13e-08 OK
+[gpu_naive n=64 NVIDIA GeForce RTX 3060] erro_rel_max=8.13e-08 OK
+[gpu_tiled n=64 NVIDIA GeForce RTX 3060] erro_rel_max=8.13e-08 OK
+[gpu_cublas n=64 NVIDIA GeForce RTX 3060] erro_rel_max=8.13e-08 OK
+[gpu_cublas_pinned n=64 NVIDIA GeForce RTX 3060] erro_rel_max=8.13e-08 OK
+[cpu_seq n=128 threads=1] erro_rel_max=9.82e-08 OK
+[cpu_omp n=128 threads=8] erro_rel_max=9.82e-08 OK
+[cpu_blas n=128 threads=8] erro_rel_max=9.93e-08 OK
+[gpu_naive n=128 NVIDIA GeForce RTX 3060] erro_rel_max=9.93e-08 OK
+[gpu_tiled n=128 NVIDIA GeForce RTX 3060] erro_rel_max=9.93e-08 OK
+[gpu_cublas n=128 NVIDIA GeForce RTX 3060] erro_rel_max=3.61e-08 OK
+[gpu_cublas_pinned n=128 NVIDIA GeForce RTX 3060] erro_rel_max=3.61e-08 OK
+[cpu_seq n=256 threads=1] erro_rel_max=9.17e-08 OK
+[cpu_omp n=256 threads=8] erro_rel_max=9.17e-08 OK
+[cpu_blas n=256 threads=8] erro_rel_max=7.63e-08 OK
+[gpu_naive n=256 NVIDIA GeForce RTX 3060] erro_rel_max=7.63e-08 OK
+[gpu_tiled n=256 NVIDIA GeForce RTX 3060] erro_rel_max=7.63e-08 OK
+[gpu_cublas n=256 NVIDIA GeForce RTX 3060] erro_rel_max=4.01e-08 OK
+[gpu_cublas_pinned n=256 NVIDIA GeForce RTX 3060] erro_rel_max=4.01e-08 OK
+[cpu_seq n=512 threads=1] erro_rel_max=8.18e-08 OK
+[cpu_omp n=512 threads=8] erro_rel_max=8.18e-08 OK
+[cpu_blas n=512 threads=8] erro_rel_max=8.94e-08 OK
+[gpu_naive n=512 NVIDIA GeForce RTX 3060] erro_rel_max=6.65e-08 OK
+[gpu_tiled n=512 NVIDIA GeForce RTX 3060] erro_rel_max=6.65e-08 OK
+[gpu_cublas n=512 NVIDIA GeForce RTX 3060] erro_rel_max=3.09e-08 OK
+[gpu_cublas_pinned n=512 NVIDIA GeForce RTX 3060] erro_rel_max=3.09e-08 OK
+[cpu_seq n=1024 threads=1] erro_rel_max=1.07e-07 OK
+[cpu_omp n=1024 threads=8] erro_rel_max=1.07e-07 OK
+[cpu_blas n=1024 threads=8] erro_rel_max=4.49e-08 OK
+[gpu_naive n=1024 NVIDIA GeForce RTX 3060] erro_rel_max=1.07e-07 OK
+[gpu_tiled n=1024 NVIDIA GeForce RTX 3060] erro_rel_max=1.07e-07 OK
+[gpu_cublas n=1024 NVIDIA GeForce RTX 3060] erro_rel_max=2.52e-08 OK
+[gpu_cublas_pinned n=1024 NVIDIA GeForce RTX 3060] erro_rel_max=2.52e-08 OK
+[cpu_omp n=2048 threads=8] erro_rel_max=6.53e-08 OK
+[cpu_blas n=2048 threads=8] erro_rel_max=2.78e-08 OK
+[gpu_naive n=2048 NVIDIA GeForce RTX 3060] erro_rel_max=5.80e-08 OK
+[gpu_tiled n=2048 NVIDIA GeForce RTX 3060] erro_rel_max=5.80e-08 OK
+[gpu_cublas n=2048 NVIDIA GeForce RTX 3060] erro_rel_max=5.80e-08 OK
+[gpu_cublas_pinned n=2048 NVIDIA GeForce RTX 3060] erro_rel_max=5.80e-08 OK
+[cpu_omp n=4096 threads=8] erro_rel_max=7.76e-08 OK
+[cpu_blas n=4096 threads=8] erro_rel_max=1.81e-08 OK
+[gpu_naive n=4096 NVIDIA GeForce RTX 3060] erro_rel_max=8.13e-08 OK
+[gpu_tiled n=4096 NVIDIA GeForce RTX 3060] erro_rel_max=8.13e-08 OK
+[gpu_cublas n=4096 NVIDIA GeForce RTX 3060] erro_rel_max=4.06e-08 OK
+[gpu_cublas_pinned n=4096 NVIDIA GeForce RTX 3060] erro_rel_max=4.06e-08 OK
