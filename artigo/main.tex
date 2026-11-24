@@ -249,13 +249,14 @@ coletados automaticamente pelo script de experimentos.
 \small
 \begin{tabular}{ll}
 \hline
-CPU & Intel Core i7-9700F, 8 núcleos/8 threads, 3,0~GHz (turbo até 4,7~GHz), L3 de 12~MiB \\
-Memória principal & 16~GB DDR4 (7,7~GiB disponíveis no WSL2) \\
+CPU & Intel Core i7-9700F, 8 núcleos, 3,0--4,7~GHz, L3 de 12~MiB \\
+Memória principal & 16~GB DDR4 (7,7~GiB visíveis no WSL2) \\
 GPU & NVIDIA GeForce RTX 3060, 12~GB GDDR6, 28 SMs \\
 Barramento & PCIe 3.0 x16 \\
-Sistema operacional & Ubuntu 26.04.1 LTS sob WSL2 (kernel 6.18), Windows 11 Pro \\
+Sistema operacional & Ubuntu 26.04.1 LTS (WSL2), Windows 11 Pro \\
 Driver & NVIDIA 621.24 \\
-Compiladores & GCC 15.2 (\texttt{-O3 -march=native -fopenmp}); CUDA 12.4 (\texttt{-O3}) \\
+Compilador C & GCC 15.2 (\texttt{-O3 -march=native -fopenmp}) \\
+Compilador CUDA & \texttt{nvcc} 12.4 (\texttt{-O3}) \\
 Bibliotecas & OpenBLAS 0.3.32 (pthreads); cuBLAS 12.4 \\
 \hline
 \end{tabular}
@@ -437,6 +438,12 @@ energética.
 
 \textbf{Disponibilidade.} \revisar{O código dos experimentos, os dados brutos e
 os scripts de análise estão disponíveis em \url{https://github.com/Mth71/artigo-cpu-gpu}.}
+
+\textbf{Uso de IA generativa.} Os autores utilizaram o assistente Claude
+(Anthropic) como apoio na revisão do código dos experimentos, no diagnóstico
+de problemas de medição, na análise estatística e na redação de trechos do
+texto. Todo o conteúdo foi revisado pelos autores, que assumem total
+responsabilidade pelo trabalho.
 
 \bibliographystyle{sbc}
 \bibliography{referencias}
