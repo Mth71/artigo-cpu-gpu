@@ -42,7 +42,7 @@ ESTILO = {
 }
 TINTA, TINTA2, GRADE = "#1f1f1e", "#5f5e58", "#e4e3de"
 plt.rcParams.update({
-    "font.size": 8, "font.family": "serif", "axes.edgecolor": TINTA2,
+    "font.size": 9, "font.family": "serif", "axes.edgecolor": TINTA2,
     "axes.labelcolor": TINTA, "xtick.color": TINTA2, "ytick.color": TINTA2,
     "axes.spines.top": False, "axes.spines.right": False,
     "axes.grid": True, "grid.color": GRADE, "grid.linewidth": 0.6,
@@ -124,7 +124,7 @@ def main():
     ax.set_xlabel("Ordem da matriz $N$")
     ax.set_ylabel("Tempo (s, escala log)")
     eixo_n(ax, sorted(set(res.n)))
-    ax.legend(fontsize=6, ncol=2, loc="upper center", bbox_to_anchor=(0.5, -0.25))
+    ax.legend(fontsize=7, ncol=2, loc="upper center", bbox_to_anchor=(0.5, -0.25))
     fig.savefig(FIG / "tempo.pdf")
     plt.close(fig)
 
@@ -143,16 +143,16 @@ def main():
                     marker=ESTILO[gpu_ref]["m"], ls=ls, label=rot, elinewidth=0.8)
     ax.axhline(1.0, color=TINTA2, lw=0.9)
     ax.text(Ns[-1], 1.0, "empate (speedup = 1) ", va="top", ha="right",
-            fontsize=6, color=TINTA2)
+            fontsize=7, color=TINTA2)
     ax.set_xscale("log", base=2)
     ax.set_yscale("log")
     ax.set_xlabel("Ordem da matriz $N$")
     ax.set_ylabel("Speedup (escala log)")
     eixo_n(ax, Ns)
     ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:g}"))
-    ax.legend(fontsize=6, loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2,
+    ax.legend(fontsize=7, loc="upper center", bbox_to_anchor=(0.5, -0.25), ncol=2,
               title=f"{ESTILO[gpu_ref]['rot']} vs. {ESTILO[cpu_ref]['rot']}",
-              title_fontsize=6)
+              title_fontsize=7)
     fig.savefig(FIG / "speedup.pdf")
     plt.close(fig)
 
@@ -175,7 +175,7 @@ def main():
     ax.set_ylabel("% do tempo")
     ax.set_ylim(0, 100)
     ax.grid(axis="x", visible=False)
-    ax.legend(fontsize=6, ncol=3, loc="upper center", bbox_to_anchor=(0.5, 1.2))
+    ax.legend(fontsize=7, ncol=3, loc="upper center", bbox_to_anchor=(0.5, 1.2))
     fig.savefig(FIG / "decomposicao.pdf")
     plt.close(fig)
 
