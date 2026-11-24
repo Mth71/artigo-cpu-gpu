@@ -38,7 +38,7 @@
 
 % Trechos de interpretação que precisam ser conferidos com os dados reais.
 % Para a versão de submissão, troque \revisartrue por \revisarfalse.
-\newif\ifrevisar \revisartrue
+\newif\ifrevisar \revisarfalse
 \newcommand{\revisar}[1]{\ifrevisar{\color{orange!70!black}#1}\else#1\fi}
 
 \newcommand{\figura}[2]{\IfFileExists{figuras/#1.pdf}%
@@ -54,7 +54,7 @@ Ronierison de Souza Maciel\inst{1}}
 
 \address{Bacharelado em Ciência da Computação -- CESAR School\\
   Recife -- PE -- Brasil
-  \email{\{lfass,mcr\}@cesar.school, \revisar{[e-mail do professor]}}
+  \email{\{lfass,mcr\}@cesar.school, rsm4@cesar.school}
 }
 
 \begin{document}
@@ -70,8 +70,8 @@ multiplication. We compare naive and optimized multithreaded CPU
 implementations (OpenMP and OpenBLAS) with three CUDA implementations (naive,
 shared-memory tiling and cuBLAS), measuring both kernel-only and end-to-end
 times, with repeated runs and 95\% confidence intervals. The GPU only
-outperforms the best CPU implementation, end to end, from a matrix order
-\breakevenEn{} onward, reaching a speedup of \speedupEteMax$\times$ at
+outperforms the best CPU implementation, end to end, beyond a break-even point
+\breakevenEn{}, reaching a speedup of \speedupEteMax$\times$ at
 $N=\nMax$, far below the \speedupSeqKernel$\times$ obtained when the kernel is
 compared with naive sequential code.
 \end{abstract}
@@ -244,19 +244,19 @@ coletados automaticamente pelo script de experimentos.
 
 \begin{table}[ht]
 \centering
-\caption{Ambiente experimental. \revisar{(Preencher com
-\texttt{resultados/ambiente.txt}.)}}
+\caption{Ambiente experimental.}
 \label{tab:ambiente}
 \small
 \begin{tabular}{ll}
 \hline
-CPU & \revisar{modelo, núcleos físicos/threads, frequência, cache L3} \\
-Memória principal & \revisar{capacidade e tipo} \\
-GPU & \revisar{modelo, memória, número de SMs} \\
-Barramento & \revisar{PCIe geração e largura} \\
-Sistema operacional & \revisar{Ubuntu xx.04, kernel x.y} \\
-Compiladores & \revisar{GCC x.y (\texttt{-O3 -march=native -fopenmp}); CUDA x.y (\texttt{-O3})} \\
-Bibliotecas & \revisar{OpenBLAS x.y; cuBLAS x.y} \\
+CPU & Intel Core i7-9700F, 8 núcleos/8 threads, 3,0~GHz (turbo até 4,7~GHz), L3 de 12~MiB \\
+Memória principal & 16~GB DDR4 (7,7~GiB disponíveis no WSL2) \\
+GPU & NVIDIA GeForce RTX 3060, 12~GB GDDR6, 28 SMs \\
+Barramento & PCIe 3.0 x16 \\
+Sistema operacional & Ubuntu 26.04.1 LTS sob WSL2 (kernel 6.18), Windows 11 Pro \\
+Driver & NVIDIA 621.24 \\
+Compiladores & GCC 15.2 (\texttt{-O3 -march=native -fopenmp}); CUDA 12.4 (\texttt{-O3}) \\
+Bibliotecas & OpenBLAS 0.3.32 (pthreads); cuBLAS 12.4 \\
 \hline
 \end{tabular}
 \end{table}
@@ -347,7 +347,7 @@ copiando dados, e o próprio kernel dura poucos microssegundos, próximo do
 custo fixo de lançamento. A hipótese H1 é, portanto, confirmada.}
 
 \textbf{Ponto de equilíbrio (H2).} \revisar{A GPU passa a vencer a melhor CPU
-de forma consistente \breakeven, e o speedup ponta a ponta cresce com $N$,
+a partir de um ponto de equilíbrio situado \breakeven, e o speedup ponta a ponta cresce com $N$,
 chegando a \speedupEteMax$\times$ em $N=\nMax$. O modelo da
 Equação~\ref{eq:nstar}, alimentado com a vazão medida da CPU
 (\gflopsCpu~GFLOP/s), do kernel da cuBLAS (\gflopsGpu~GFLOP/s) e com a banda
@@ -378,8 +378,11 @@ linha de base e do que se inclui na medição, em linha com
 Lee et al.~\cite{lee2010}. A hipótese H3 é confirmada.}
 
 \textbf{Implementações próprias de GPU.} \revisar{A versão blocada em memória
-compartilhada é mais rápida que a ingênua em todos os tamanhos maiores,
-mas fica distante da cuBLAS, sendo cerca de 3,9 vezes mais lenta de ponta a ponta em $N=\nMax$.
+compartilhada é mais rápida que a ingênua em todos os tamanhos, mas o ganho é
+modesto (cerca de 1,2 a 1,3 vezes a partir de $N=512$, considerando só o
+kernel), provavelmente porque as caches L1 e L2 das GPUs atuais já aproveitam
+parte do reuso de dados da versão ingênua. Ela também fica distante da cuBLAS,
+sendo cerca de 3,9 vezes mais lenta de ponta a ponta em $N=\nMax$.
 Isso mostra que a vantagem da GPU depende também de otimizações difíceis de
 reproduzir à mão, como as descritas por Volkov e Demmel~\cite{volkov2008}.
 Da mesma forma, a nossa versão OpenMP blocada fica atrás da OpenBLAS,
@@ -417,7 +420,8 @@ curva ``só kernel''.
 Este trabalho investigou quando a GPU compensa na multiplicação de matrizes
 densas, comparando-a com uma CPU multithread otimizada e incluindo a
 transferência de dados na medição. \revisar{Os resultados mostram que a GPU
-só vence de ponta a ponta \breakeven, que o ganho chega a
+só vence de ponta a ponta a partir de um ponto de equilíbrio situado
+\breakeven, que o ganho chega a
 \speedupEteMax$\times$ em $N=\nMax$ e que esse valor é muito menor do que o
 obtido ao comparar apenas o kernel com código sequencial ingênuo.} A
 mensagem prática é que a decisão de usar GPU deve considerar o tamanho do
@@ -432,7 +436,7 @@ experimentos em outras combinações de hardware; e medir a eficiência
 energética.
 
 \textbf{Disponibilidade.} \revisar{O código dos experimentos, os dados brutos e
-os scripts de análise estão disponíveis em [link do repositório].}
+os scripts de análise estão disponíveis em \url{https://github.com/Mth71/artigo-cpu-gpu}.}
 
 \bibliographystyle{sbc}
 \bibliography{referencias}
